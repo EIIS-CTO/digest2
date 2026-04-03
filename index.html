@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CTO Digest #2: Vibe Coding</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #030508;
+            --panel: rgba(11, 16, 22, 0.8);
+            --text-main: #d1d5db;
+            --text-muted: #64748b;
+            --cyan: #22d3ee;
+            --cyan-glow: rgba(34, 211, 238, 0.4);
+            --purple: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.4);
+            --green: #4ade80;
+            --green-glow: rgba(74, 222, 128, 0.4);
+            --red: #ef4444;
+            --orange: #f97316;
+            --yellow: #facc15;
+        }
+
+        body, html {
+            width: 100%; min-height: 100%;
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Animated Grid Background */
+        .grid-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            perspective: 1000px; z-index: -2; overflow: hidden;
+            background: radial-gradient(circle at center, #0a1118 0%, #030508 100%);
+        }
+        .grid-plane {
+            position: absolute; bottom: -50%; left: -50%; width: 200%; height: 200%;
+            background-image:
+                linear-gradient(rgba(168, 85, 247, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(168, 85, 247, 0.08) 1px, transparent 1px);
+            background-size: 50px 50px;
+            transform: rotateX(75deg); transform-origin: top center;
+            animation: gridMove 10s linear infinite;
+        }
+        @keyframes gridMove { 0% { transform: rotateX(75deg) translateY(0); } 100% { transform: rotateX(75deg) translateY(50px); } }
+
+        /* Scanlines */
+        body::after {
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%);
+            background-size: 100% 4px; z-index: 999; pointer-events: none; opacity: 0.3;
+        }
+
+        .container {
+            width: 100%; max-width: 900px; margin: 0 auto; padding: 60px 20px;
+            position: relative; z-index: 1; min-height: 100vh;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+
+        /* Steps Logic */
+        .step { display: none; animation: fadeIn 0.8s ease forwards; width: 100%; }
+        .step.active { display: block; }
+
+        /* Header */
+        .header { text-align: center; margin-bottom: 30px; }
+        .header-tag {
+            display: inline-block; padding: 6px 16px; border: 1px solid var(--purple); color: var(--purple);
+            font-size: 0.75rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 20px;
+        }
+        .header-title {
+            font-size: 3.2rem; color: #fff; font-weight: normal; letter-spacing: 3px; text-transform: uppercase;
+            margin-bottom: 10px; text-shadow: 0 0 20px rgba(255,255,255,0.2), 0 0 40px var(--purple-glow);
+        }
+        .header-sub {
+            color: var(--text-muted); font-size: 1rem; letter-spacing: 1px;
+            max-width: 600px; margin: 15px auto 0; line-height: 1.7;
+        }
+
+        /* Progress Bar */
+        .progress-container { width: 100%; height: 4px; background: rgba(255,255,255,0.1); margin-bottom: 40px; border-radius: 2px; overflow: hidden; display: none; }
+        .progress-bar { height: 100%; background: var(--purple); width: 0%; transition: width 0.5s ease; box-shadow: 0 0 10px var(--purple-glow); }
+
+        /* Content Boxes */
+        .log-box {
+            background: var(--panel); border: 1px solid rgba(255,255,255,0.1);
+            padding: 35px 30px; border-radius: 4px; margin-bottom: 25px;
+            position: relative; backdrop-filter: blur(10px);
+        }
+        .log-box.purple { border-left: 4px solid var(--purple); }
+        .log-box.cyan { border-left: 4px solid var(--cyan); }
+        .log-box.green { border-left: 4px solid var(--green); }
+
+        .log-header { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        .log-title { color: #fff; font-size: 1.5rem; margin-bottom: 20px; font-weight: normal; }
+        .log-text { font-size: 0.95rem; line-height: 1.8; color: var(--text-main); margin-bottom: 15px; }
+        .log-text:last-child { margin-bottom: 0; }
+        .hl-purple { color: var(--purple); font-weight: bold; }
+        .hl-cyan { color: var(--cyan); font-weight: bold; }
+        .hl-green { color: var(--green); font-weight: bold; }
+        .hl-red { color: var(--red); font-weight: bold; }
+
+        /* Hacker List */
+        ul.hacker-list { list-style: none; margin: 20px 0; padding-left: 10px; }
+        ul.hacker-list li { margin-bottom: 15px; line-height: 1.6; position: relative; padding-left: 20px; }
+        ul.hacker-list li::before { content: '>'; position: absolute; left: 0; color: var(--purple); font-weight: bold; }
+
+        /* Code Block */
+        .code-block {
+            background: #000; padding: 20px; border-radius: 4px; margin: 20px 0;
+            font-size: 0.88rem; line-height: 1.6; border: 1px solid rgba(255,255,255,0.05); overflow-x: auto;
+        }
+        .c-comment { color: var(--text-muted); }
+        .c-kw { color: var(--purple); }
+        .c-str { color: var(--green); }
+        .c-fn { color: var(--yellow); }
+
+        /* Buttons */
+        .btn-container { text-align: right; margin-top: 30px; }
+        .btn {
+            background: transparent; border: 1px solid var(--purple); color: var(--purple);
+            padding: 15px 30px; font-family: inherit; text-transform: uppercase; cursor: pointer;
+            transition: all 0.3s; font-weight: bold; letter-spacing: 1px; border-radius: 4px;
+        }
+        .btn:hover:not(:disabled) { background: rgba(168, 85, 247, 0.1); box-shadow: 0 0 15px var(--purple-glow); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn.center { display: block; margin: 0 auto; text-align: center; width: 100%; max-width: 400px; }
+        .btn.green { border-color: var(--green); color: var(--green); }
+        .btn.green:hover:not(:disabled) { background: rgba(74, 222, 128, 0.1); box-shadow: 0 0 15px var(--green-glow); }
+        .btn.cyan { border-color: var(--cyan); color: var(--cyan); }
+        .btn.cyan:hover:not(:disabled) { background: rgba(34, 211, 238, 0.1); box-shadow: 0 0 15px var(--cyan-glow); }
+
+        /* Terminal Preview */
+        .terminal-box {
+            background: #000; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin: 20px 0;
+        }
+        .terminal-bar {
+            background: #111; padding: 8px 15px; font-size: 0.75rem; color: var(--text-muted);
+            border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 8px;
+        }
+        .td { width: 8px; height: 8px; border-radius: 50%; }
+        .td.r { background: var(--red); } .td.y { background: var(--yellow); } .td.g { background: var(--green); }
+        .terminal-body {
+            padding: 15px; font-size: 0.85rem; line-height: 1.6; min-height: 60px; max-height: 250px; overflow-y: auto;
+        }
+        .tp { color: var(--green); }
+        .to { color: var(--text-muted); }
+        .ts { color: var(--cyan); font-weight: bold; }
+
+        /* Challenge: Sortable Prompt Blocks */
+        .prompt-builder { margin: 25px 0; }
+        .prompt-label { color: var(--purple); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; font-weight: bold; }
+
+        .scrambled-blocks { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; min-height: 50px; }
+        .prompt-block {
+            background: #000; border: 1px solid var(--text-muted); color: var(--text-main);
+            padding: 10px 16px; cursor: pointer; transition: all 0.3s; border-radius: 4px; font-size: 0.9rem;
+            user-select: none;
+        }
+        .prompt-block:hover { border-color: var(--purple); color: var(--purple); }
+        .prompt-block.selected { border-color: var(--purple); background: rgba(168, 85, 247, 0.15); color: var(--purple); }
+        .prompt-block.correct { border-color: var(--green); background: rgba(74, 222, 128, 0.15); color: var(--green); }
+        .prompt-block.wrong { border-color: var(--red); background: rgba(239, 68, 68, 0.1); color: var(--red); }
+
+        .drop-zone {
+            border: 2px dashed rgba(255,255,255,0.15); border-radius: 4px; padding: 15px;
+            min-height: 55px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+            transition: border-color 0.3s; margin-bottom: 15px;
+        }
+        .drop-zone.active { border-color: var(--purple); }
+        .drop-zone-label { color: var(--text-muted); font-size: 0.8rem; }
+
+        .prompt-block.in-zone { background: rgba(168, 85, 247, 0.1); border-color: var(--purple); color: var(--purple); }
+
+        /* Challenge Feedback */
+        .challenge-feedback {
+            display: none; padding: 20px; border-left: 3px solid var(--green);
+            background: rgba(74, 222, 128, 0.05); margin: 20px 0; animation: slideDown 0.5s ease forwards;
+        }
+        .challenge-feedback.error { border-left-color: var(--red); background: rgba(239,68,68,0.05); }
+
+        /* Deploy Simulation */
+        .deploy-sim { display: none; margin-top: 25px; }
+        .deploy-log { margin-bottom: 5px; opacity: 0; animation: fadeInLine 0.15s forwards; }
+
+        /* Registration */
+        .form-control {
+            width: 100%; background: #000; border: 1px solid var(--text-muted); color: #fff;
+            padding: 15px; font-family: inherit; font-size: 1.1rem; border-radius: 4px;
+            transition: border 0.3s; text-align: center;
+        }
+        .form-control:focus { outline: none; border-color: var(--green); box-shadow: 0 0 10px var(--green-glow); }
+
+        .submit-btn {
+            width: 100%; max-width: 400px; margin: 20px auto 0; display: block;
+            background: transparent; border: 2px solid var(--green); color: var(--green);
+            padding: 18px; font-family: inherit; text-transform: uppercase; font-weight: bold;
+            font-size: 1.1rem; cursor: pointer; transition: 0.3s; letter-spacing: 2px; border-radius: 4px;
+        }
+        .submit-btn:hover:not(:disabled) { background: var(--green); color: #000; box-shadow: 0 0 20px var(--green-glow); }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .msg-box { margin-top: 20px; text-align: center; font-weight: bold; display: none; padding: 15px; border-radius: 4px; line-height: 1.5; }
+        .msg-success { color: var(--green); border: 1px solid var(--green); background: rgba(74,222,128,0.1); }
+        .msg-error { color: var(--red); border: 1px solid var(--red); background: rgba(239,68,68,0.1); }
+        .msg-warning { color: var(--orange); border: 1px solid var(--orange); background: rgba(249,115,22,0.1); }
+
+        /* Spots */
+        .spots-info { text-align: center; margin-bottom: 30px; }
+        .spots-track { width: 100%; max-width: 350px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin: 8px auto; }
+        .spots-fill { height: 100%; background: var(--green); transition: width 1s ease; border-radius: 3px; box-shadow: 0 0 8px var(--green-glow); }
+        .spots-fill.warning { background: var(--orange); } .spots-fill.full { background: var(--red); }
+        .spots-text { color: var(--text-muted); font-size: 0.85rem; }
+        .spots-text strong { color: var(--green); }
+
+        /* Success Screen */
+        .final-screen { text-align: center; padding: 60px 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; }
+        .success-icon-container { position: relative; width: 120px; height: 120px; margin-bottom: 40px; }
+        .success-ring { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 4px solid var(--green); border-radius: 50%; animation: pingRing 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+        .success-check { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 4rem; color: var(--green); text-shadow: 0 0 20px var(--green-glow); }
+        .final-title { font-size: 2.5rem; color: #fff; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 3px; }
+        .final-msg { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 10px; line-height: 1.6; }
+        .final-cta { font-size: 1.4rem; color: var(--purple); font-weight: bold; text-transform: uppercase; letter-spacing: 3px; margin-top: 40px; animation: pulse-opacity 2s infinite; text-shadow: 0 0 15px var(--purple-glow); }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInLine { to { opacity: 1; } }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pingRing { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.8); opacity: 0; } }
+        @keyframes pulse-opacity { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        @media (max-width: 600px) {
+            .header-title { font-size: 2.2rem; }
+            .log-box { padding: 20px 15px; }
+            .final-title { font-size: 1.8rem; }
+            .final-cta { font-size: 1.1rem; }
+            .prompt-block { font-size: 0.8rem; padding: 8px 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="grid-bg"><div class="grid-plane"></div></div>
+
+    <div class="container">
+
+        <header class="header">
+            <div class="header-tag">Edition 02</div>
+            <h1 class="header-title">CTO Digest #2</h1>
+            <p class="header-sub">April 24, 2026 &middot; 10:00 CET &middot; Google Meet</p>
+        </header>
+
+        <div class="progress-container" id="progress-wrapper">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 0: INTRO -->
+        <!-- ============================================ -->
+        <div id="step-0" class="step active">
+            <div class="log-box purple" style="text-align: center; padding: 50px 30px;">
+                <h2 class="log-title" style="font-size: 1.8rem;">Before you register, prove you can vibe.</h2>
+                <p class="log-text" style="color: var(--text-muted); max-width: 550px; margin: 0 auto 30px;">
+                    CTO Digest #2 is about <span class="hl-purple">Vibe Coding</span> &mdash; the art of building software without writing a single line of code. Complete this sequence to unlock your spot.
+                </p>
+                <button class="btn center" onclick="startSequence()">[ Initialize Sequence ]</button>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 1: EDUCATIONAL - What is Vibe Coding -->
+        <!-- ============================================ -->
+        <div id="step-1" class="step">
+            <div class="log-box purple">
+                <div class="log-header">Record 01 // The New Paradigm</div>
+                <h2 class="log-title">What is Vibe Coding?</h2>
+                <p class="log-text">
+                    The term was coined by <span class="hl-purple">Andrej Karpathy</span> (co-founder of OpenAI, former AI Director at Tesla). His definition:
+                </p>
+                <div class="code-block" style="border-left: 3px solid var(--purple); font-style: italic; color: #fff; font-size: 0.95rem;">
+                    "There's a new kind of coding I call <span class="c-kw">vibe coding</span>, where you fully give in to the vibes, embrace exponentials, and forget that the code even exists. It's not really coding &mdash; I just see stuff, say stuff, run stuff, and copy-paste stuff, and it mostly works."
+                </div>
+                <p class="log-text">
+                    In practice: you don't open an IDE and write functions. You open a conversation with an AI and <span class="hl-cyan">describe what you want to build</span>. The AI writes the code. You guide, iterate, and ship.
+                </p>
+
+                <ul class="hacker-list">
+                    <li><strong>The Old Way:</strong> Learn syntax → write code → debug errors → deploy after months. The blank page is terrifying because the cost of failure is enormous.</li>
+                    <li><strong>The Vibe Way:</strong> Describe your vision → AI generates code → iterate in real-time → deploy in minutes. <span class="hl-green">Failing costs nothing.</span> Speed of iteration beats perfect planning.</li>
+                    <li><strong class="hl-red">Warning &mdash; Dunning-Kruger:</strong> Vibe coding doesn't make you a senior engineer. It makes you dangerously productive. The human still needs judgment, taste, and the ability to evaluate what the AI produces.</li>
+                </ul>
+
+                <div class="code-block">
+                    <span class="c-comment">// Traditional approach (hours/days)</span><br>
+                    <span class="c-kw">const</span> express = <span class="c-fn">require</span>(<span class="c-str">'express'</span>);<br>
+                    <span class="c-kw">const</span> app = <span class="c-fn">express</span>();<br>
+                    app.<span class="c-fn">get</span>(<span class="c-str">'/'</span>, (req, res) =&gt; {<br>
+                    &nbsp;&nbsp;<span class="c-comment">// 200 lines of manual code later...</span><br>
+                    });<br><br>
+                    <span class="c-comment">// Vibe coding approach (minutes)</span><br>
+                    <span class="c-str">"Build a booking system with email notifications,</span><br>
+                    <span class="c-str">&nbsp;a dark terminal aesthetic, and deploy it live."</span><br>
+                    <span class="c-comment">// Done. Shipped. Next.</span>
+                </div>
+
+                <div class="btn-container">
+                    <button class="btn" onclick="goToStep(2)">[ Proceed to Challenge -> ]</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 2: INTERACTIVE CHALLENGE -->
+        <!-- ============================================ -->
+        <div id="step-2" class="step">
+            <div class="log-box cyan">
+                <div class="log-header">Record 02 // Vibe Coding Challenge</div>
+                <h2 class="log-title">Build Something. Right Now.</h2>
+                <p class="log-text">
+                    You just learned the theory. Now prove you understand the mindset. Below is a scrambled AI prompt. Your job: <span class="hl-cyan">arrange the blocks into the correct order</span> to form a valid vibe coding prompt that could actually ship a product.
+                </p>
+                <p class="log-text" style="color: var(--text-muted); font-size: 0.85rem;">
+                    Think like a vibe coder: what comes first? The vision, the details, or the deployment?
+                </p>
+
+                <div class="prompt-builder">
+                    <div class="prompt-label">> Arrange the prompt:</div>
+
+                    <div class="scrambled-blocks" id="source-blocks">
+                        <!-- Blocks injected via JS (shuffled) -->
+                    </div>
+
+                    <div class="prompt-label" style="margin-top: 20px;">> Your prompt sequence:</div>
+                    <div class="drop-zone" id="drop-zone">
+                        <span class="drop-zone-label" id="dz-placeholder">Click blocks above to build your prompt...</span>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;">
+                        <button class="btn" style="border-color: var(--text-muted); color: var(--text-muted); padding: 10px 20px; font-size: 0.85rem;" onclick="resetChallenge()">[ Reset ]</button>
+                        <button class="btn cyan" id="btn-check" onclick="checkChallenge()" disabled>[ Verify Prompt ]</button>
+                    </div>
+                </div>
+
+                <div class="challenge-feedback" id="challenge-feedback"></div>
+
+                <!-- Deploy Simulation (appears after correct answer) -->
+                <div class="deploy-sim" id="deploy-sim">
+                    <div class="terminal-box">
+                        <div class="terminal-bar">
+                            <div class="td r"></div><div class="td y"></div><div class="td g"></div>
+                            <span style="margin-left: 10px;">vibe-deploy.sh</span>
+                        </div>
+                        <div class="terminal-body" id="deploy-terminal"></div>
+                    </div>
+                    <div class="btn-container" id="btn-register-container" style="display: none;">
+                        <button class="btn green" onclick="goToStep(3)">[ Unlock Registration -> ]</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 3: REGISTRATION -->
+        <!-- ============================================ -->
+        <div id="step-3" class="step">
+            <div class="log-box green">
+                <div class="log-header">Record 03 // Secure Your Spot</div>
+                <h2 class="log-title">You passed. Now register.</h2>
+                <p class="log-text" style="text-align: center; margin-bottom: 10px;">
+                    You've proven you understand the vibe. Lock in your seat for CTO Digest #2.
+                </p>
+
+                <div class="spots-info">
+                    <div class="spots-text"><strong id="spots-count">--</strong> / 15 spots remaining</div>
+                    <div class="spots-track"><div class="spots-fill" id="spots-fill" style="width: 0%;"></div></div>
+                </div>
+
+                <div style="max-width: 450px; margin: 0 auto;">
+                    <input type="email" id="reg-email" class="form-control" placeholder="name.surname@eiis.eu" required>
+                    <button class="submit-btn" id="submit-btn" onclick="submitRegistration()">[ Confirm Registration ]</button>
+                    <div class="msg-box" id="reg-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================ -->
+        <!-- STEP 4: SUCCESS -->
+        <!-- ============================================ -->
+        <div id="step-4" class="step">
+            <div class="final-screen">
+                <div class="success-icon-container">
+                    <div class="success-ring"></div>
+                    <div class="success-check">&#10003;</div>
+                </div>
+                <h2 class="final-title">Registration Confirmed</h2>
+                <p class="final-msg">Your slot for CTO Digest #2 is locked in.</p>
+                <p class="final-msg" style="color: #fff;"><strong>April 24, 2026</strong> &middot; 10:00 CET &middot; Google Meet</p>
+                <p class="final-msg" style="font-size: 0.95rem;">Bring your laptop. Bring your imagination.<br>Leave your syntax fears at the door.</p>
+                <div class="final-cta">> The blank page dies on Friday _</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // =============================================
+        // CONFIG
+        // =============================================
+        const API_URL = "https://script.google.com/macros/s/AKfycbxvnenX61wIBy51pj6eZJ1qPluO46z3hpnXYNSfVgFDO4XwHRNbbVFYGr4fW6-mAerY/exec";
+        const totalSteps = 4;
+
+        // =============================================
+        // NAVIGATION
+        // =============================================
+        function goToStep(n) {
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            document.getElementById('step-' + n).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('progress-bar').style.width = ((n / totalSteps) * 100) + '%';
+        }
+
+        function startSequence() {
+            document.getElementById('progress-wrapper').style.display = 'block';
+            goToStep(1);
+        }
+
+        // =============================================
+        // CHALLENGE: PROMPT BUILDER
+        // =============================================
+        const correctOrder = [
+            "Build a landing page",
+            "for a tech event registration",
+            "with a dark terminal aesthetic",
+            "add email validation",
+            "and deploy it to production"
+        ];
+
+        // Shuffle for display
+        const shuffledBlocks = [...correctOrder].sort(() => Math.random() - 0.5);
+        let userSequence = [];
+
+        function initChallenge() {
+            const source = document.getElementById('source-blocks');
+            source.innerHTML = '';
+            shuffledBlocks.forEach((text, i) => {
+                const block = document.createElement('div');
+                block.className = 'prompt-block';
+                block.innerText = text;
+                block.dataset.text = text;
+                block.dataset.index = i;
+                block.onclick = () => selectBlock(block);
+                source.appendChild(block);
+            });
+        }
+
+        function selectBlock(block) {
+            if (block.classList.contains('selected')) {
+                // Remove from zone
+                block.classList.remove('selected');
+                userSequence = userSequence.filter(t => t !== block.dataset.text);
+                renderDropZone();
+                return;
+            }
+
+            block.classList.add('selected');
+            userSequence.push(block.dataset.text);
+            renderDropZone();
+        }
+
+        function renderDropZone() {
+            const zone = document.getElementById('drop-zone');
+            const placeholder = document.getElementById('dz-placeholder');
+            const checkBtn = document.getElementById('btn-check');
+
+            if (userSequence.length === 0) {
+                zone.innerHTML = '<span class="drop-zone-label" id="dz-placeholder">Click blocks above to build your prompt...</span>';
+                checkBtn.disabled = true;
+                return;
+            }
+
+            zone.innerHTML = '';
+            userSequence.forEach(text => {
+                const el = document.createElement('div');
+                el.className = 'prompt-block in-zone';
+                el.innerText = text;
+                zone.appendChild(el);
+            });
+
+            checkBtn.disabled = userSequence.length !== correctOrder.length;
+        }
+
+        function resetChallenge() {
+            userSequence = [];
+            document.querySelectorAll('#source-blocks .prompt-block').forEach(b => b.classList.remove('selected', 'correct', 'wrong'));
+            renderDropZone();
+            document.getElementById('challenge-feedback').style.display = 'none';
+            document.getElementById('deploy-sim').style.display = 'none';
+            document.getElementById('btn-check').disabled = true;
+        }
+
+        function checkChallenge() {
+            const feedback = document.getElementById('challenge-feedback');
+            let allCorrect = true;
+
+            for (let i = 0; i < correctOrder.length; i++) {
+                if (userSequence[i] !== correctOrder[i]) {
+                    allCorrect = false;
+                    break;
+                }
+            }
+
+            // Color the blocks in the drop zone
+            const zoneBlocks = document.querySelectorAll('#drop-zone .prompt-block');
+            zoneBlocks.forEach((block, i) => {
+                block.classList.remove('correct', 'wrong');
+                if (block.innerText === correctOrder[i]) {
+                    block.classList.add('correct');
+                } else {
+                    block.classList.add('wrong');
+                }
+            });
+
+            if (allCorrect) {
+                feedback.className = 'challenge-feedback';
+                feedback.style.display = 'block';
+                feedback.innerHTML = '<strong style="color: var(--green);">Prompt Validated.</strong> You think like a vibe coder. Vision first, details second, deploy last. That\'s the entire philosophy: describe, iterate, ship.';
+                document.getElementById('btn-check').disabled = true;
+                document.getElementById('btn-check').innerText = '[ Verified ]';
+
+                // Trigger deploy simulation
+                setTimeout(runDeploySim, 1200);
+            } else {
+                feedback.className = 'challenge-feedback error';
+                feedback.style.display = 'block';
+                feedback.innerHTML = '<strong style="color: var(--red);">Sequence Error.</strong> Think about the natural flow: what do you tell the AI first? Start with the big picture, then add details, then deploy. Try again.';
+            }
+        }
+
+        // =============================================
+        // DEPLOY SIMULATION
+        // =============================================
+        function runDeploySim() {
+            const sim = document.getElementById('deploy-sim');
+            sim.style.display = 'block';
+            sim.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            const terminal = document.getElementById('deploy-terminal');
+            terminal.innerHTML = '';
+
+            const logs = [
+                { text: '<span class="tp">$</span> <span class="to">Sending prompt to AI model...</span>', delay: 0 },
+                { text: '<span class="tp">$</span> <span class="to">Generating index.html (147 lines)...</span>', delay: 400 },
+                { text: '<span class="tp">$</span> <span class="to">Adding email validation logic...</span>', delay: 700 },
+                { text: '<span class="tp">$</span> <span class="to">Applying dark terminal theme...</span>', delay: 1000 },
+                { text: '<span class="tp">$</span> <span class="to">git add . && git commit -m "vibe: initial build"</span>', delay: 1400 },
+                { text: '<span class="to">[main 3f7a2c1] vibe: initial build</span>', delay: 1700 },
+                { text: '<span class="tp">$</span> <span class="to">git push origin main</span>', delay: 2000 },
+                { text: '<span class="to">Deploying to production... [##########] 100%</span>', delay: 2500 },
+                { text: '<span class="ts">> Live in 8.2 seconds. Zero lines of code written by a human.</span>', delay: 3200 },
+            ];
+
+            logs.forEach(log => {
+                setTimeout(() => {
+                    terminal.innerHTML += `<div class="deploy-log">${log.text}</div>`;
+                    terminal.scrollTop = terminal.scrollHeight;
+                }, log.delay);
+            });
+
+            setTimeout(() => {
+                document.getElementById('btn-register-container').style.display = 'block';
+            }, 4000);
+        }
+
+        // =============================================
+        // REGISTRATION
+        // =============================================
+        async function checkSpots() {
+            try {
+                const params = new URLSearchParams({ action: "check_spots_ed2", email: "system@eiis.eu", _t: Date.now() });
+                const response = await fetch(`${API_URL}?${params.toString()}`, { method: 'GET', credentials: 'omit' });
+                const data = await response.json();
+                if (data.status === "ok") updateSpotsUI(data.spotsLeft, data.totalSpots);
+                else fallbackSpots();
+            } catch (err) { fallbackSpots(); }
+        }
+
+        function fallbackSpots() {
+            document.getElementById('spots-count').innerText = '15';
+            document.getElementById('spots-fill').style.width = '0%';
+        }
+
+        function updateSpotsUI(spotsLeft, totalSpots) {
+            document.getElementById('spots-count').innerText = spotsLeft;
+            const pct = ((totalSpots - spotsLeft) / totalSpots) * 100;
+            const fill = document.getElementById('spots-fill');
+            fill.style.width = pct + '%';
+
+            if (spotsLeft <= 0) {
+                fill.classList.add('full');
+                document.getElementById('spots-count').style.color = 'var(--red)';
+                document.getElementById('submit-btn').disabled = true;
+                document.getElementById('submit-btn').innerText = '[ Sold Out ]';
+            } else if (spotsLeft <= 5) {
+                fill.classList.add('warning');
+            }
+        }
+
+        async function submitRegistration() {
+            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const btn = document.getElementById('submit-btn');
+            const msgBox = document.getElementById('reg-message');
+
+            if (!email || !email.includes('@eiis.eu')) {
+                showRegMsg("ACCESS DENIED. Only @eiis.eu email addresses are authorized.", "error");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = '[ Processing... ]';
+            msgBox.style.display = 'none';
+
+            const params = new URLSearchParams({
+                action: "register_ed2",
+                email: email,
+                fullName: email.split('@')[0].replace('.', ' '),
+                _t: Date.now()
+            });
+
+            try {
+                const response = await fetch(`${API_URL}?${params.toString()}`, { method: 'GET', credentials: 'omit' });
+                const data = await response.json();
+
+                if (data.status === "ok") {
+                    goToStep(4);
+                } else if (data.status === "already_registered") {
+                    showRegMsg("You are already registered. See you on April 24!", "warning");
+                    btn.disabled = false;
+                    btn.innerText = '[ Confirm Registration ]';
+                } else if (data.status === "full") {
+                    showRegMsg("All 15 spots are taken. Registration is closed.", "error");
+                    btn.innerText = '[ Sold Out ]';
+                } else {
+                    showRegMsg("ERROR: " + (data.message || "Unknown error"), "error");
+                    btn.disabled = false;
+                    btn.innerText = '[ Confirm Registration ]';
+                }
+            } catch (err) {
+                showRegMsg("NETWORK ERROR: Cannot reach server. Try again.", "error");
+                btn.disabled = false;
+                btn.innerText = '[ Confirm Registration ]';
+            }
+        }
+
+        function showRegMsg(msg, type) {
+            const box = document.getElementById('reg-message');
+            box.innerText = msg;
+            box.className = 'msg-box msg-' + type;
+            box.style.display = 'block';
+        }
+
+        // =============================================
+        // INIT
+        // =============================================
+        initChallenge();
+        checkSpots();
+    </script>
+</body>
+</html>
