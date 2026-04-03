@@ -251,7 +251,7 @@
         <header class="header">
             <div class="header-tag">Edition 02</div>
             <h1 class="header-title">CTO Digest #2</h1>
-            <p class="header-sub">April 24, 2026 &middot; 10:00 CET &middot; Google Meet</p>
+            <p class="header-sub">April 24, 2026 &middot; 10:00 - 10:45 CET &middot; Google Meet</p>
         </header>
 
         <div class="progress-container" id="progress-wrapper">
@@ -264,10 +264,16 @@
         <div id="step-0" class="step active">
             <div class="log-box purple" style="text-align: center; padding: 50px 30px;">
                 <h2 class="log-title" style="font-size: 1.8rem;">Before you register, prove you can vibe.</h2>
-                <p class="log-text" style="color: var(--text-muted); max-width: 550px; margin: 0 auto 30px;">
+                <p class="log-text" style="color: var(--text-muted); max-width: 550px; margin: 0 auto 20px;">
                     CTO Digest #2 is about <span class="hl-purple">Vibe Coding</span> &mdash; the art of building software without writing a single line of code. Complete this sequence to unlock your spot.
                 </p>
-                <button class="btn center" onclick="startSequence()">[ Initialize Sequence ]</button>
+
+                <div class="spots-info" style="margin-bottom: 25px;">
+                    <div class="spots-text"><strong id="spots-count-intro">--</strong> / 15 spots remaining</div>
+                    <div class="spots-track"><div class="spots-fill" id="spots-fill-intro" style="width: 0%;"></div></div>
+                </div>
+
+                <button class="btn center" id="btn-start" onclick="startSequence()">[ Initialize Sequence ]</button>
             </div>
         </div>
 
@@ -410,7 +416,7 @@
         // =============================================
         // CONFIG
         // =============================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbxvnenX61wIBy51pj6eZJ1qPluO46z3hpnXYNSfVgFDO4XwHRNbbVFYGr4fW6-mAerY/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbwuXEKcG496JL8cfBS0W71cNqifmgU5jLOmCk3aZ_sGKtXEvrpyU718_Ovdq6DQ61c/exec";
         const totalSteps = 4;
 
         // =============================================
@@ -591,21 +597,31 @@
         function fallbackSpots() {
             document.getElementById('spots-count').innerText = '15';
             document.getElementById('spots-fill').style.width = '0%';
+            document.getElementById('spots-count-intro').innerText = '15';
+            document.getElementById('spots-fill-intro').style.width = '0%';
         }
 
         function updateSpotsUI(spotsLeft, totalSpots) {
-            document.getElementById('spots-count').innerText = spotsLeft;
             const pct = ((totalSpots - spotsLeft) / totalSpots) * 100;
-            const fill = document.getElementById('spots-fill');
-            fill.style.width = pct + '%';
+
+            // Update both bars (intro + registration)
+            ['', '-intro'].forEach(suffix => {
+                const count = document.getElementById('spots-count' + suffix);
+                const fill = document.getElementById('spots-fill' + suffix);
+                if (count) count.innerText = spotsLeft;
+                if (fill) {
+                    fill.style.width = pct + '%';
+                    fill.classList.remove('warning', 'full');
+                    if (spotsLeft <= 0) fill.classList.add('full');
+                    else if (spotsLeft <= 5) fill.classList.add('warning');
+                }
+            });
 
             if (spotsLeft <= 0) {
-                fill.classList.add('full');
-                document.getElementById('spots-count').style.color = 'var(--red)';
                 document.getElementById('submit-btn').disabled = true;
                 document.getElementById('submit-btn').innerText = '[ Sold Out ]';
-            } else if (spotsLeft <= 5) {
-                fill.classList.add('warning');
+                document.getElementById('btn-start').disabled = true;
+                document.getElementById('btn-start').innerText = '[ Sold Out ]';
             }
         }
 
