@@ -418,7 +418,7 @@
         // =============================================
         // CONFIG
         // =============================================
-        const API_URL = "https://script.google.com/macros/s/AKfycbwuXEKcG496JL8cfBS0W71cNqifmgU5jLOmCk3aZ_sGKtXEvrpyU718_Ovdq6DQ61c/exec";
+        const API_URL = "https://script.google.com/macros/s/AKfycbxfgy5HsnR8Sr4D0ieJTf9gC0Z5ptlxRGTnZE66n7e5d7Kfns6jLJJ7IUidvg03dMw/exec";
         const totalSteps = 4;
 
         // =============================================
@@ -429,6 +429,8 @@
             document.getElementById('step-' + n).classList.add('active');
             window.scrollTo({ top: 0, behavior: 'smooth' });
             document.getElementById('progress-bar').style.width = ((n / totalSteps) * 100) + '%';
+            // Refresh spots counter every time user reaches step 3
+            if (n === 3) checkSpots();
         }
 
         function startSequence() {
